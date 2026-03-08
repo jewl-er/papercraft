@@ -1,8 +1,8 @@
+#include "platform_compat.h"
 #include "stl_3d.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <unistd.h>
 
 
 static const int debug = 0;
@@ -11,7 +11,7 @@ typedef struct
 {
 	char header[80];
 	uint32_t num_triangles;
-} __attribute__((__packed__))
+} PACKED
 stl_3d_file_header_t;
 
 
@@ -20,7 +20,7 @@ typedef struct
 	v3_t normal;
 	v3_t p[3];
 	uint16_t attr;
-} __attribute__((__packed__))
+} PACKED
 stl_3d_file_triangle_t;
 
 

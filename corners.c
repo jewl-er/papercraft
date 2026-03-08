@@ -10,14 +10,12 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdarg.h>
-#include <unistd.h>
+#include "platform_compat.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <math.h>
-#include <err.h>
 #include <assert.h>
-#include <getopt.h>
 #include "v3.h"
 #include "stl_3d.h"
 
