@@ -14,9 +14,9 @@ all: unfold wireframe corners faces hiddenwire
 
 unfold: unfold.o
 wireframe: wireframe.o
-corners: corners.o stl_3d.o
-faces: faces.o stl_3d.o
-hiddenwire: hiddenwire.o camera.o tri.o
+corners: corners.o stl_3d.o getopt_compat.o
+faces: faces.o stl_3d.o getopt_compat.o
+hiddenwire: hiddenwire.o camera.o tri.o getopt_compat.o
 
 # Test the triangle intersection code
 test-intersect: test-intersect.o tri.o

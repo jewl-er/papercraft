@@ -10,11 +10,9 @@ static int debug = 0;
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdarg.h>
-#include <unistd.h>
+#include "platform_compat.h"
 #include <math.h>
-#include <err.h>
 #include <assert.h>
-#include <getopt.h>
 #include "v3.h"
 #include "tri.h"
 #include "camera.h"
@@ -64,7 +62,7 @@ typedef struct
 {
 	char header[80];
 	uint32_t num_triangles;
-} __attribute__((__packed__))
+} PACKED
 stl_header_t;
 
 
@@ -73,7 +71,7 @@ typedef struct
 	v3_t normal;
 	v3_t p[3];
 	uint16_t attr;
-} __attribute__((__packed__))
+} PACKED
 stl_face_t;
 
 
