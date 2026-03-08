@@ -1,0 +1,86 @@
+name: Manual build and release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (leave empty to auto-generate)"
+        required: false
+      release_name:
+        description: "Release name (leave empty to use the tag)"
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up MSYS2 toolchain
+        uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          install: >-
+            make
+            mingw-w64-ucrt-x86_64-gcc
+
+      - name: Build binaries
+        run: |
+          make clean
+          make -j"$(nproc)"
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p dist
+          for bin in unfold wireframe corners faces hiddenwire; do
+            if [ -f "${bin}.exe" ]; then
+              cp "${bin}.exe" dist/
+            elif [ -f "${bin}" ]; then
+              cp "${bin}" dist/
+            fi
+          done
+
+          if [ "$(ls -1 dist | wc -l)" -eq 0 ]; then
+            echo "No build outputs found in dist/."
+            exit 1
+          fi
+
+          archive="papercraft-win-windows-${GITHUB_SHA::7}.zip"
+          (cd dist && zip -9 -r "${archive}" .)
+          echo "ARCHIVE=dist/${archive}" >> "$GITHUB_ENV"
+
+      - name: Determine release tag and name
+        id: release_meta
+        shell: bash
+        run: |
+          if [ -n "${{ github.event.inputs.tag }}" ]; then
+            tag="${{ github.event.inputs.tag }}"
+          else
+            tag="manual-${GITHUB_RUN_NUMBER}-$(date -u +%Y%m%d%H%M%S)"
+          fi
+
+          if [ -n "${{ github.event.inputs.release_name }}" ]; then
+            name="${{ github.event.inputs.release_name }}"
+          else
+            name="$tag"
+          fi
+
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_meta.outputs.tag }}
+          name: ${{ steps.release_meta.outputs.name }}
+          files: ${{ env.ARCHIVE }}
+          generate_release_notes: true
