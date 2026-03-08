@@ -14,31 +14,63 @@ permissions:
   contents: write
 
 jobs:
-  build-and-release:
-    runs-on: windows-latest
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux-x86_64
+            cc: gcc
+            packages: make gcc zip
+          - os: ubuntu-latest
+            target: linux-i686
+            cc: i686-linux-gnu-gcc
+            packages: make gcc-i686-linux-gnu zip
+          - os: ubuntu-latest
+            target: linux-aarch64
+            cc: aarch64-linux-gnu-gcc
+            packages: make gcc-aarch64-linux-gnu zip
+          - os: windows-latest
+            target: windows-x86_64
+            cc: gcc
+            msys2: true
+            msys2_packages: >-
+              make
+              mingw-w64-ucrt-x86_64-gcc
+              zip
 
     defaults:
       run:
-        shell: msys2 {0}
+        shell: ${{ matrix.msys2 && 'msys2 {0}' || 'bash' }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install Linux toolchain
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.packages }}
+
       - name: Set up MSYS2 toolchain
+        if: matrix.os == 'windows-latest'
         uses: msys2/setup-msys2@v2
         with:
           update: true
-          install: >-
-            make
-            mingw-w64-ucrt-x86_64-gcc
+          install: ${{ matrix.msys2_packages }}
 
       - name: Build binaries
+        env:
+          CC: ${{ matrix.cc }}
         run: |
           make clean
           make -j"$(nproc)"
 
-      - name: Prepare release assets
+      - name: Package release artifact
         run: |
           mkdir -p dist
           for bin in unfold wireframe corners faces hiddenwire; do
@@ -54,13 +86,29 @@ jobs:
             exit 1
           fi
 
-          archive="papercraft-win-windows-${GITHUB_SHA::7}.zip"
+          archive="papercraft-${{ matrix.target }}-${GITHUB_SHA::7}.zip"
           (cd dist && zip -9 -r "${archive}" .)
-          echo "ARCHIVE=dist/${archive}" >> "$GITHUB_ENV"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.target }}
+          path: dist/*.zip
+
+  release:
+    name: Publish GitHub release
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
 
       - name: Determine release tag and name
         id: release_meta
-        shell: bash
         run: |
           if [ -n "${{ github.event.inputs.tag }}" ]; then
             tag="${{ github.event.inputs.tag }}"
@@ -82,5 +130,5 @@ jobs:
         with:
           tag_name: ${{ steps.release_meta.outputs.tag }}
           name: ${{ steps.release_meta.outputs.name }}
-          files: ${{ env.ARCHIVE }}
+          files: release-assets/*.zip
           generate_release_notes: true
